@@ -1,7 +1,7 @@
 # Faraday — OpenCode Text-to-Speech Plugin
 
 Speaks OpenCode's final assistant answers aloud on Linux (Omarchy) using local
-[Piper](https://github.com/rhasspy/piper) TTS, with an `espeak-ng` fallback.
+[Piper](https://github.com/OHF-Voice/piper1-gpl) TTS, with an `espeak-ng` fallback.
 
 - Local, private speech synthesis — no cloud TTS.
 - One voice, one utterance: per-message and text-hash deduplication.
