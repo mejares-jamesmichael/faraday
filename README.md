@@ -55,7 +55,7 @@ The model is 22,050 Hz, mono, 16-bit PCM.
 
 ```bash
 mkdir -p ~/.config/opencode/plugins
-cp agent-voice.js ~/.config/opencode/plugins/agent-voice.js
+cp faraday-voice.js ~/.config/opencode/plugins/faraday-voice.js
 ```
 
 ### Restart OpenCode's background service
@@ -81,13 +81,16 @@ All settings are environment variables read by the plugin:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `AGENT_TTS_PIPER_BIN` | `~/.local/bin/piper` | Piper executable |
-| `AGENT_TTS_PIPER_MODEL` | `~/.local/share/piper-voices/en_US-amy-medium.onnx` | Voice model path |
-| `AGENT_TTS_PLAYER_BIN` | `paplay` | Audio player |
-| `AGENT_TTS_PLAYER_ARGS` | `--raw --format=s16le --rate=22050 --channels=1` | Player arguments |
+| `FARADAY_TTS_PIPER_BIN` | `~/.local/bin/piper` | Piper executable |
+| `FARADAY_TTS_PIPER_MODEL` | `~/.local/share/piper-voices/en_US-amy-medium.onnx` | Voice model path |
+| `FARADAY_TTS_PLAYER_BIN` | `paplay` | Audio player |
+| `FARADAY_TTS_PLAYER_ARGS` | `--raw --format=s16le --rate=22050 --channels=1` | Player arguments |
 
-If you switch to a different Piper voice, update `AGENT_TTS_PLAYER_ARGS` to match
+If you switch to a different Piper voice, update `FARADAY_TTS_PLAYER_ARGS` to match
 that model's sample rate and channel count (see the voice's `.onnx.json`).
+
+**Legacy environment variables** (`AGENT_TTS_*`) are also supported as fallbacks,
+so existing configurations continue to work without changes.
 
 The spoken prefix is set in `speakCompletedAnswer()`:
 
@@ -97,8 +100,8 @@ const spoken = `Faraday: ${text}`;
 
 ## Commands
 
-- `/agent-voice-test` — speaks "Faraday voice test. If you hear this, speech
-  playback works."
+- `/faraday-test` — speaks "Faraday voice test. If you hear this, speech playback works."
+- `/agent-voice-test` — **alias** for `/faraday-test`, kept for legacy support
 
 ## How it works
 
@@ -121,7 +124,7 @@ const spoken = `Faraday: ${text}`;
 
 OpenCode instantiates a global plugin **once per active location/project**. All
 instances share the same server process, so mutable state is stored on
-`globalThis` under `Symbol.for("agent-voice.opencode.shared")`:
+`globalThis` under `Symbol.for("faraday-voice.opencode.shared")`:
 
 ```js
 const state = (globalThis[STATE_KEY] ??= {
@@ -184,7 +187,7 @@ paplay --raw --format=s16le --rate=22050 --channels=1
 ### No sound at all
 
 - Confirm `paplay` works: `paplay /usr/share/sounds/alsa/Front_Center.wav`
-- Confirm the model sample rate matches `AGENT_TTS_PLAYER_ARGS`.
+- Confirm the model sample rate matches `FARADAY_TTS_PLAYER_ARGS`.
 - Confirm `espeak-ng` is installed as a fallback.
 
 ### Plugin changes do not take effect
@@ -196,9 +199,9 @@ TUI window does not re-evaluate plugin JavaScript.
 
 This is why shared `globalThis` state exists. If it recurs:
 
-1. Confirm only one `agent-voice.js` exists:
+1. Confirm only one `faraday-voice.js` exists:
    ```bash
-   find ~ -name agent-voice.js -not -path '*/node_modules/*'
+   find ~ -name faraday-voice.js -not -path '*/node_modules/*'
    ```
 2. Restart the service: `opencode service restart`.
 3. Check active locations: `opencode api get /api/debug/location`.
@@ -222,7 +225,7 @@ regex chain there.
 
 | File | Description |
 |---|---|
-| `agent-voice.js` | OpenCode plugin |
+| `faraday-voice.js` | OpenCode plugin |
 | `README.md` | This document |
 
 ## License

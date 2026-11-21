@@ -5,20 +5,18 @@ import { join } from "node:path";
 import { Plugin } from "@opencode/plugin";
 
 const MAX_CHARS = 1600;
-const PIPER_BIN =
-  process.env.AGENT_TTS_PIPER_BIN || join(homedir(), ".local/bin/piper");
-const PIPER_MODEL =
-  process.env.AGENT_TTS_PIPER_MODEL ||
-  join(homedir(), ".local/share/piper-voices/en_US-amy-medium.onnx");
-const PLAYER_BIN = process.env.AGENT_TTS_PLAYER_BIN || "paplay";
+const env = (name, legacy) => process.env[name] ?? process.env[legacy];
+const PIPER_BIN = env("FARADAY_TTS_PIPER_BIN", "AGENT_TTS_PIPER_BIN") || join(homedir(), ".local/bin/piper");
+const PIPER_MODEL = env("FARADAY_TTS_PIPER_MODEL", "AGENT_TTS_PIPER_MODEL") || join(homedir(), ".local/share/piper-voices/en_US-amy-medium.onnx");
+const PLAYER_BIN = env("FARADAY_TTS_PLAYER_BIN", "AGENT_TTS_PLAYER_BIN") || "paplay";
 const PLAYER_ARGS = (
-  process.env.AGENT_TTS_PLAYER_ARGS || "--raw --format=s16le --rate=22050 --channels=1"
+  process.env.FARADAY_TTS_PLAYER_ARGS || process.env.AGENT_TTS_PLAYER_ARGS || "--raw --format=s16le --rate=22050 --channels=1"
 )
   .split(/\s+/)
   .filter(Boolean);
 
 const SPEECH_DEDUPE_WINDOW_MS = 3000;
-const STATE_KEY = Symbol.for("agent-voice.opencode.shared");
+const STATE_KEY = Symbol.for("faraday-voice.opencode.shared");
 
 // OpenCode instantiates a global plugin once per active location. All instances
 // run in the same server process, so keep mutable state on globalThis to share
@@ -130,9 +128,9 @@ function spawnPiperSpeech(text) {
       if (piperResult?.error) return finish(piperResult);
       if (piperResult?.code !== 0) return finish(piperResult);
       if (playerResult?.error) {
-        console.error("[agent-voice] audio player failed to start:", playerResult.error.message);
+        console.error("[faraday-voice] audio player failed to start:", playerResult.error.message);
       } else if (playerResult?.code !== 0) {
-        console.error("[agent-voice] audio player exited unsuccessfully:", playerResult);
+        console.error("[faraday-voice] audio player exited unsuccessfully:", playerResult);
       }
       finish(piperResult);
     };
@@ -195,11 +193,11 @@ async function speak(text) {
   if (!piperResult.error && piperResult.code === 0) return piperResult;
 
   if (piperResult.error) {
-    console.error("[agent-voice] Piper failed to start:", piperResult.error.message);
+    console.error("[faraday-voice] Piper failed to start:", piperResult.error.message);
   } else {
-    console.error("[agent-voice] Piper exited unsuccessfully:", piperResult);
+    console.error("[faraday-voice] Piper exited unsuccessfully:", piperResult);
   }
-  console.error("[agent-voice] falling back to espeak-ng");
+  console.error("[faraday-voice] falling back to espeak-ng");
   return spawnSpeech("espeak-ng", ["--stdin"], text);
 }
 
@@ -219,9 +217,9 @@ async function drainSpeechQueue() {
       const job = state.speechQueue.shift();
       const result = await speak(job.text);
       if (result.error) {
-        console.error("[agent-voice] Could not start speech:", result.error.message);
+        console.error("[faraday-voice] Could not start speech:", result.error.message);
       } else if (result.code !== 0) {
-        console.error("[agent-voice] speech exited unsuccessfully:", result);
+        console.error("[faraday-voice] speech exited unsuccessfully:", result);
       }
       job.resolve(result);
     }
@@ -269,19 +267,21 @@ async function speakCompletedAnswer(sessionID) {
 }
 
 export default Plugin.define({
-  id: "agent-voice.opencode",
+  id: "faraday-voice.opencode",
 
   async setup(ctx) {
     const controller = new AbortController();
 
     await ctx.command.transform((editor) => {
-      editor.add({
-        name: "agent-voice-test",
-        description: "Speak a short Piper test phrase",
-        execute: async () => {
-          await enqueueSpeech("Faraday voice test. If you hear this, speech playback works.");
-        },
-      });
+      for (const name of ["faraday-test", "agent-voice-test"]) {
+        editor.add({
+          name,
+          description: "Speak a short Piper test phrase",
+          execute: async () => {
+            await enqueueSpeech("Faraday voice test. If you hear this, speech playback works.");
+          },
+        });
+      }
     });
 
     void (async () => {
@@ -306,19 +306,19 @@ export default Plugin.define({
 
         const sessionID = eventSessionID(event);
         if (!sessionID) {
-          console.error("[agent-voice] Completion event did not include a session ID");
+          console.error("[faraday-voice] Completion event did not include a session ID");
           continue;
         }
 
         try {
           await speakCompletedAnswer(sessionID);
         } catch (error) {
-          console.error("[agent-voice] Could not speak final response:", error);
+          console.error("[faraday-voice] Could not speak final response:", error);
         }
       }
     })().catch((error) => {
       if (!controller.signal.aborted) {
-        console.error("[agent-voice] Completion listener stopped:", error);
+        console.error("[faraday-voice] Completion listener stopped:", error);
       }
     });
 
