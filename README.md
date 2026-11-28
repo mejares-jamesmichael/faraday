@@ -1,7 +1,18 @@
-# Faraday — OpenCode Text-to-Speech Plugin
+# Faraday — OpenCode Voice & Omarchy Control
 
-Speaks OpenCode's final assistant answers aloud on Linux (Omarchy) using local
-[Piper](https://github.com/OHF-Voice/piper1-gpl) TTS, with an `espeak-ng` fallback.
+Gives OpenCode (and compatible coding agents) a local voice and live desktop
+control on Linux (Omarchy + Hyprland):
+
+- **Voice output (`faraday-voice.js`):** Speaks OpenCode's final assistant answers
+  aloud using local [Piper](https://github.com/OHF-Voice/piper1-gpl) TTS, with an
+  `espeak-ng` fallback.
+- **Desktop & system control (`skills/omarchy-control/`):** Agent skill for
+  switching workspaces, launching/focusing apps, managing windows/layouts, and
+  controlling audio, Wi-Fi, Bluetooth, brightness, toggles, and power profiles.
+
+---
+
+## Part 1: Faraday Voice (OpenCode TTS Plugin)
 
 - Local, private speech synthesis — no cloud TTS.
 - One voice, one utterance: per-message and text-hash deduplication.
@@ -221,11 +232,76 @@ regex chain there.
 - **Voice input:** this plugin only handles output. Superwhisper remains the
   dictation/input layer and is unchanged.
 
+---
+
+## Part 2: `omarchy-control` Skill (Live Desktop & System Control)
+
+An agent skill in [`skills/omarchy-control/`](skills/omarchy-control/) that lets
+OpenCode (and other agents supporting `~/.agents/skills/`) control a live
+Omarchy 4.5+ / Hyprland 0.55+ (Lua) desktop safely via `hyprctl`, `omarchy`, and
+`nmcli`.
+
+### Capabilities
+
+- **Workspaces & windows:** Switch workspaces, inspect open windows/workspaces,
+  launch or focus apps/web apps/TUIs, move or close windows, toggle floating or
+  fullscreen, and check/cycle workspace layouts (`dwindle` / `scrolling` /
+  `floating`).
+- **Audio & volume:** Raise/lower/mute output volume (with Omarchy OSD), switch
+  audio output devices, mute/unmute microphone, and cycle media sources.
+- **Wi-Fi & network:** Check network status, toggle Wi-Fi (`nmcli`), and restart
+  Wi-Fi.
+- **Brightness & Bluetooth:** Adjust display and keyboard backlight brightness;
+  power Bluetooth on/off and connect/disconnect devices.
+- **Quick toggles & power profiles:** Toggle night light, Do Not Disturb
+  (notification silencing), stay-awake/idle mode, touchpad, bar visibility, and
+  switch power profiles (`power-saver` / `balanced` / `performance`).
+
+### Safety boundaries
+
+- **Runtime actions only:** Never edits `~/.config/hypr/*`,
+  `/usr/share/omarchy/*`, or shell profiles (use Omarchy's own `omarchy` skill
+  for config edits).
+- **Confirmation required** before closing all windows, turning Wi-Fi off
+  (which disconnects cloud-hosted agents), or running reboot/shutdown/logout/lock.
+- **Self-aware:** Protects the agent's own terminal window unless explicitly
+  asked.
+
+### Install the skill
+
+Copy into `~/.agents/skills/` so OpenCode and other coding agents discover it
+automatically:
+
+```bash
+mkdir -p ~/.agents/skills
+cp -r skills/omarchy-control ~/.agents/skills/omarchy-control
+```
+
+Or install for OpenCode only:
+
+```bash
+mkdir -p ~/.config/opencode/skills
+cp -r skills/omarchy-control ~/.config/opencode/skills/omarchy-control
+```
+
+### Requirements
+
+- Omarchy 4.5+ (`omarchy` CLI)
+- Hyprland 0.55+ with Lua dispatchers (`hyprctl dispatch 'hl.dsp.*'`)
+- `jq` and `nmcli`
+
+---
+
 ## Files
 
 | File | Description |
 |---|---|
-| `faraday-voice.js` | OpenCode plugin |
+| `faraday-voice.js` | OpenCode local TTS plugin |
+| `skills/omarchy-control/SKILL.md` | Live desktop & system control skill |
+| `skills/omarchy-control/references/hyprctl-lua-dispatch.md` | Hyprland 0.55+ Lua `hl.dsp.*` reference |
+| `skills/omarchy-control/references/omarchy-launchers.md` | `omarchy launch` & `omarchy hyprland` commands |
+| `skills/omarchy-control/references/system-controls.md` | Audio, Wi-Fi, Bluetooth, brightness, toggles & power |
+| `skills/omarchy-control/references/recipes.md` | End-to-end recipes for common requests |
 | `README.md` | This document |
 
 ## License
