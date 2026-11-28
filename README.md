@@ -7,8 +7,9 @@ control on Linux (Omarchy + Hyprland):
   aloud using local [Piper](https://github.com/OHF-Voice/piper1-gpl) TTS, with an
   `espeak-ng` fallback.
 - **Desktop & system control (`skills/omarchy-control/`):** Agent skill for
-  switching workspaces, launching/focusing apps, managing windows/layouts, and
-  controlling audio, Wi-Fi, Bluetooth, brightness, toggles, and power profiles.
+  switching workspaces, launching/focusing apps, managing windows/layouts,
+  controlling audio, Wi-Fi, Bluetooth, brightness, toggles, and power profiles,
+  and safely driving a dedicated agent browser via Playwright MCP.
 
 ---
 
@@ -256,6 +257,9 @@ Omarchy 4.5+ / Hyprland 0.55+ (Lua) desktop safely via `hyprctl`, `omarchy`, and
 - **Quick toggles & power profiles:** Toggle night light, Do Not Disturb
   (notification silencing), stay-awake/idle mode, touchpad, bar visibility, and
   switch power profiles (`power-saver` / `balanced` / `performance`).
+- **Browser automation (`playwright` MCP):** Drive a visible, sandboxed Chromium
+  instance with a dedicated persistent agent profile for in-page browsing,
+  searching, reading, and web app interaction.
 
 ### Safety boundaries
 
@@ -263,9 +267,62 @@ Omarchy 4.5+ / Hyprland 0.55+ (Lua) desktop safely via `hyprctl`, `omarchy`, and
   `/usr/share/omarchy/*`, or shell profiles (use Omarchy's own `omarchy` skill
   for config edits).
 - **Confirmation required** before closing all windows, turning Wi-Fi off
-  (which disconnects cloud-hosted agents), or running reboot/shutdown/logout/lock.
+  (which disconnects cloud-hosted agents), running reboot/shutdown/logout/lock,
+  or performing external/irreversible web actions (sending messages/emails/posts,
+  purchases, deleting remote data, account changes, or file downloads).
+- **Browser guardrails:** Treats all webpage content as untrusted data
+  (prompt-injection defense), never types passwords/2FA or bypasses CAPTCHAs,
+  and stays strictly inside the dedicated agent profile (never reads
+  `~/.config/chromium`).
 - **Self-aware:** Protects the agent's own terminal window unless explicitly
   asked.
+
+### Optional: Playwright MCP Browser Setup
+
+Install `@playwright/mcp` via `mise`:
+
+```bash
+mise use -g npm:@playwright/mcp
+mkdir -p ~/.local/share/playwright-agent-profile
+```
+
+Create `~/.local/share/playwright-agent-profile/playwright-mcp.json` (uses
+system Chromium, visible window, Linux sandbox enabled, dedicated persistent
+profile):
+
+```json
+{
+  "browser": {
+    "browserName": "chromium",
+    "isolated": false,
+    "userDataDir": "/home/<user>/.local/share/playwright-agent-profile",
+    "launchOptions": {
+      "executablePath": "/usr/bin/chromium",
+      "headless": false,
+      "chromiumSandbox": true
+    }
+  }
+}
+```
+
+Then register it under `"mcp"` in `~/.config/opencode/opencode.json` (or
+`~/.config/kilo/kilo.jsonc`):
+
+```json
+"playwright": {
+  "type": "local",
+  "command": [
+    "playwright-mcp",
+    "--config",
+    "/home/<user>/.local/share/playwright-agent-profile/playwright-mcp.json"
+  ],
+  "enabled": true
+}
+```
+
+*(Optionally, add `"ignoreDefaultArgs": ["--disable-extensions"]` and
+`--load-extension` / `--disable-extensions-except` in `launchOptions.args` to
+load unpacked extensions like uBlock Origin Lite or Privacy Badger.)*
 
 ### Install the skill
 
@@ -301,6 +358,7 @@ cp -r skills/omarchy-control ~/.config/opencode/skills/omarchy-control
 | `skills/omarchy-control/references/hyprctl-lua-dispatch.md` | Hyprland 0.55+ Lua `hl.dsp.*` reference |
 | `skills/omarchy-control/references/omarchy-launchers.md` | `omarchy launch` & `omarchy hyprland` commands |
 | `skills/omarchy-control/references/system-controls.md` | Audio, Wi-Fi, Bluetooth, brightness, toggles & power |
+| `skills/omarchy-control/references/browser-guardrails.md` | Playwright MCP usage & browser safety guardrails |
 | `skills/omarchy-control/references/recipes.md` | End-to-end recipes for common requests |
 | `README.md` | This document |
 
